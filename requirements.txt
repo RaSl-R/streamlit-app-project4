@@ -1,0 +1,5 @@
+streamlit
+sqlalchemy
+pandas
+passlib[bcrypt]
+psycopg2-binary

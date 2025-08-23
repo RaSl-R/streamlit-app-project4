@@ -2,19 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from sqlalchemy import create_engine, text
+from utils.db import get_connection
 import os
-
-# Připojovací údaje (lze později nahradit načítáním z .env)
-DB_USER = "neondb_owner"
-DB_PASSWORD = "npg_bqIR6D2UkALc"
-DB_HOST = "ep-icy-moon-a2bfjmyb-pooler.eu-central-1.aws.neon.tech"
-DB_NAME = "neondb"
-
-@st.cache_resource
-def get_connection():
-    conn_str = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
-    engine = create_engine(conn_str, connect_args={"sslmode": "require"})
-    return engine.connect()
 
 @st.cache_data
 def list_schemas(_conn):
