@@ -5,8 +5,6 @@ from streamlit_data_browser import main_data_browser
 st.set_page_config(layout="wide", page_title="Moje Streamlit app")
 
 def main():
-    st.title("Databázová aplikace")
-
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
 
