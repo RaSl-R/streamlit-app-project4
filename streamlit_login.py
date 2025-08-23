@@ -100,3 +100,4 @@ def change_password_form():
 def logout():
     st.session_state.clear()
     st.rerun()
+
