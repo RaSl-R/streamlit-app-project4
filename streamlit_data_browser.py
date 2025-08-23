@@ -175,20 +175,25 @@ def main_data_browser():
         st.session_state.message = "Změny byly zahozeny (ROLLBACK) – data byla znovu načtena z databáze."
         st.rerun()
 
-    if col3.button("💾 COMMIT", use_container_width=True):
-        try:
-            datetime_cols = edited_df.select_dtypes(include=['datetime64[ns]']).columns
-            for col in datetime_cols:
-                edited_df[col] = pd.to_datetime(edited_df[col], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
-
-            replace_table(conn, selected_table_id, edited_df)
-            load_table.clear()
-            st.session_state.reload_data = True
-            st.session_state.editor_key_counter += 1
-            st.session_state.message = "Změny byly uloženy (COMMIT)."
-            st.rerun()
-        except Exception as e:
-            st.error(f"Chyba při COMMITu: {e}")
+    if col3.button("COMMIT", use_container_width=True):
+        # KROK 1: Zkontrolujeme roli uživatele
+        if st.session_state.user_role == 'viewer':
+            st.error("🚫 Uživatel s rolí 'viewer' nemá oprávnění měnit data.")
+        else:
+            # KROK 2: Pokud role není 'viewer', provedeme původní logiku
+            try:
+                datetime_cols = edited_df.select_dtypes(include=['datetime64[ns]']).columns
+                for col in datetime_cols:
+                    edited_df[col] = pd.to_datetime(edited_df[col], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+                
+                replace_table(conn, selected_table_id, edited_df)
+                load_table.clear()
+                st.session_state.reload_data = True
+                st.session_state.editor_key_counter += 1
+                st.session_state.message = "Změny byly uloženy (COMMIT)."
+                st.rerun()
+            except Exception as e:
+                st.error(f"Chyba při COMMITu: {e}")
 
     with st.expander("⬇️ Export do CSV"):
         csv = edited_df.to_csv(index=False).encode('utf-8')
