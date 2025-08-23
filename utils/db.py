@@ -2,10 +2,10 @@ import streamlit as st
 from sqlalchemy import create_engine
 
 # Připojovací údaje – ideálně časem dát do .env
-DB_USER = "neondb_owner"
-DB_PASSWORD = "npg_bqIR6D2UkALc"
-DB_HOST = "ep-icy-moon-a2bfjmyb-pooler.eu-central-1.aws.neon.tech"
-DB_NAME = "neondb"
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
 
 @st.cache_resource
 def get_engine():
