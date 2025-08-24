@@ -175,7 +175,7 @@ def main_data_browser():
         st.session_state.message = "Změny byly zahozeny (ROLLBACK) – data byla znovu načtena z databáze."
         st.rerun()
 
-    if col3.button("COMMIT", use_container_width=True):
+    if col3.button("💾 COMMIT", use_container_width=True):
         # KROK 1: Zkontrolujeme roli uživatele
         if st.session_state.user_role == 'viewer':
             st.error("🚫 Uživatel s rolí 'viewer' nemá oprávnění měnit data.")
