@@ -1,11 +1,14 @@
 import streamlit as st
+import psycopg2
 from sqlalchemy import create_engine
 
-# Připojovací údaje – ideálně časem dát do .env
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
+conn = psycopg2.connect(
+    host=st.secrets["database"]["host"],
+    port=st.secrets["database"]["port"],
+    user=st.secrets["database"]["user"],
+    password=st.secrets["database"]["password"],
+    database=st.secrets["database"]["database"]
+)
 
 @st.cache_resource
 def get_engine():
