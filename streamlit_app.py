@@ -18,7 +18,7 @@ def main():
             change_password_form()
 
         with st.sidebar.expander("🧭 Žádost o skupinu"):
-            request_group_form()  # nebo request_group_form_by_id()
+            request_group_form_by_id()
 
         main_data_browser()
 
