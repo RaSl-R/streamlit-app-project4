@@ -14,17 +14,29 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-def check_login(email: str, password: str, conn) -> str | None:
+def get_user_permissions(conn, email: str) -> dict:
+    query = text("""
+        SELECT p.schema_name, MAX(p.permission) as max_permission
+        FROM auth.users u
+        JOIN auth.user_groups ug ON u.id = ug.user_id
+        JOIN auth.group_schema_permissions p ON ug.group_id = p.group_id
+        WHERE u.email = :email
+        GROUP BY p.schema_name;
+    """)
+    result = conn.execute(query, {"email": email})
+    # Vytvoří slovník, např. {'public': 'write', 'demo': 'read'}
+    return {row[0]: row[1] for row in result}
+
+# Zjednodušená funkce check_login, vrací True/False
+def check_login(email: str, password: str, conn) -> bool:
     result = conn.execute(
-        text("SELECT password_hash, role FROM auth.users WHERE email = :email"),
+        text("SELECT password_hash FROM auth.users WHERE email = :email"),
         {"email": email}
     ).fetchone()
     if not result:
-        return None
-    stored_hash, role = result
-    if verify_password(password, stored_hash):
-        return role
-    return None
+        return False
+    # [cite_start]Ověření hesla [cite: 39]
+    return verify_password(password, result[0])
 
 # --- UI ---
 def login_form():
@@ -33,18 +45,22 @@ def login_form():
         email = st.text_input("Email")
         password = st.text_input("Heslo", type="password")
         submitted = st.form_submit_button("Přihlásit")
+        if submitted:
+            with engine.begin() as conn:
+                # [cite_start]Upravená logika po přihlášení [cite: 52-58]
+                if check_login(email, password, conn):
+                    st.session_state.logged_in = True
+                    st.session_state.user_email = email
+                    # Načteme a uložíme oprávnění do session state
+                    st.session_state.permissions = get_user_permissions(conn, email)
+                    st.success(f"Přihlášen jako {email}")
+                    st.rerun()
+                else:
+                    st.error("Neplatné přihlašovací údaje")
 
-    if submitted:
-        with engine.begin() as conn:
-            role = check_login(email, password, conn)
-        if role:
-            st.session_state.logged_in = True
-            st.session_state.user_email = email
-            st.session_state.user_role = role
-            st.success(f"Přihlášen jako {email} ({role})")
-            st.rerun()
-        else:
-            st.error("Neplatné přihlašovací údaje")
+def get_groups(conn):
+    result = conn.execute(text("SELECT id, name FROM auth.groups ORDER BY name"))
+    return {row[1]: row[0] for row in result} # Vrací dict {'název': id}
 
 def register_form():
     st.subheader("Registrace")
@@ -52,26 +68,34 @@ def register_form():
         email = st.text_input("Email")
         password = st.text_input("Heslo", type="password")
         confirm = st.text_input("Potvrzení hesla", type="password")
-        requested_role = st.selectbox("Požadovaná role", ["viewer", "editor", "admin"])
-        submitted = st.form_submit_button("Registrovat")
 
-    if submitted:
-        if password != confirm:
-            st.error("Hesla se neshodují")
-            return
-        hashed = hash_password(password)
-        try:
-            with engine.begin() as conn:
-                conn.execute(
-                    text("""
-                        INSERT INTO auth.users (email, password_hash, role, requested_role) 
-                        VALUES (:email, :hash, 'viewer', :requested_role)
-                    """),
-                    {"email": email, "hash": hashed, "requested_role": requested_role}
-                )
-            st.success("Registrace proběhla úspěšně, nyní se přihlaste.")
-        except Exception as e:
-            st.error(f"Chyba: {e}")
+        with engine.connect() as conn:
+            groups_dict = get_groups(conn)
+            # [cite_start]Nahrazení původního selectboxu [cite: 67]
+            requested_group_name = st.selectbox("Požadovaná skupina", options=list(groups_dict.keys()))
+
+        submitted = st.form_submit_button("Registrovat")
+        if submitted:
+            if password != confirm:
+                st.error("Hesla se neshodují")
+                return
+
+            hashed = hash_password(password)
+            requested_group_id = groups_dict.get(requested_group_name)
+
+            try:
+                with engine.begin() as conn:
+                    # [cite_start]Aktualizovaný INSERT příkaz [cite: 79-82]
+                    conn.execute(
+                        text("""
+                            INSERT INTO auth.users (email, password_hash, requested_group_id)
+                            VALUES (:email, :hash, :requested_group_id)
+                        """),
+                        {"email": email, "hash": hashed, "requested_group_id": requested_group_id}
+                    )
+                st.success("Registrace proběhla úspěšně, nyní se přihlaste.")
+            except Exception as e:
+                st.error(f"Chyba: {e}")
 
 def change_password_form():
     st.subheader("Změna hesla")

@@ -195,6 +195,29 @@ def main_data_browser():
             except Exception as e:
                 st.error(f"Chyba při COMMITu: {e}")
 
+
+    if col3.button("💾 COMMIT", use_container_width=True):
+        # KROK 1: Zkontrolujeme oprávnění uživatele na základě nového modelu
+        schema_name, _ = selected_table_id.split('.', 1)
+        user_permissions = st.session_state.get('permissions', {})
+        permission_for_schema = user_permissions.get(schema_name)
+
+        # Oprávnění 'write' je vyžadováno pro změn
+        if permission_for_schema != 'write':
+            st.error(f"🚫 Nemáte oprávnění 'write' k zápisu do schématu '{schema_name}'.")
+        else:
+            # KROK 2: Pokud má uživatel oprávnění 'write', provedeme původní logiku
+            try:
+                # ... (zbytek logiky pro COMMIT zůstává stejný) ...
+                replace_table(conn, selected_table_id, edited_df)
+                load_table.clear()
+                st.session_state.reload_data = True
+                st.session_state.editor_key_counter += 1
+                st.session_state.message = "Změny byly uloženy (COMMIT)."
+                st.rerun()
+            except Exception as e:
+                st.error(f"Chyba při COMMITu: {e}")
+
     with st.expander("⬇️ Export do CSV"):
         csv = edited_df.to_csv(index=False).encode('utf-8')
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
