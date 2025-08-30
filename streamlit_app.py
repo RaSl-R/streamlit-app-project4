@@ -2,7 +2,7 @@ import streamlit as st
 from streamlit_login import login_form, register_form, change_password_form, request_group_form, logout
 from streamlit_data_browser import main_data_browser
 
-st.set_page_config(layout="wide", page_title="Moje Streamlit app")
+st.set_page_config(layout="wide", page_title="RaSl Data browser")
 
 def main():
     if "logged_in" not in st.session_state:
