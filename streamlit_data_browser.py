@@ -71,7 +71,7 @@ def display_data_editor(df_to_edit, editor_key):
     edited_df = st.data_editor(
         df_to_edit,
         num_rows="dynamic",
-        use_container_width=True,
+        width=True,
         key=editor_key
     )
     return edited_df
@@ -168,35 +168,14 @@ def main_data_browser():
     editor_key = f"editor_{st.session_state.editor_key_counter}"
     edited_df = display_data_editor(df, editor_key)
 
-    if col2.button("🔁 ROLLBACK", use_container_width=True):
+    if col2.button("🔁 ROLLBACK", width=True):
         load_table.clear()
         st.session_state.reload_data = True
         st.session_state.editor_key_counter += 1
         st.session_state.message = "Změny byly zahozeny (ROLLBACK) – data byla znovu načtena z databáze."
         st.rerun()
 
-    if col3.button("💾 COMMIT", use_container_width=True):
-        # KROK 1: Zkontrolujeme roli uživatele
-        if st.session_state.user_role == 'viewer':
-            st.error("🚫 Uživatel s rolí 'viewer' nemá oprávnění měnit data.")
-        else:
-            # KROK 2: Pokud role není 'viewer', provedeme původní logiku
-            try:
-                datetime_cols = edited_df.select_dtypes(include=['datetime64[ns]']).columns
-                for col in datetime_cols:
-                    edited_df[col] = pd.to_datetime(edited_df[col], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
-                
-                replace_table(conn, selected_table_id, edited_df)
-                load_table.clear()
-                st.session_state.reload_data = True
-                st.session_state.editor_key_counter += 1
-                st.session_state.message = "Změny byly uloženy (COMMIT)."
-                st.rerun()
-            except Exception as e:
-                st.error(f"Chyba při COMMITu: {e}")
-
-
-    if col3.button("💾 COMMIT", use_container_width=True):
+    if col3.button("💾 COMMIT", width=True):
         # KROK 1: Zkontrolujeme oprávnění uživatele na základě nového modelu
         schema_name, _ = selected_table_id.split('.', 1)
         user_permissions = st.session_state.get('permissions', {})
@@ -234,7 +213,7 @@ def main_data_browser():
         if uploaded_file:
             try:
                 imported_df = pd.read_csv(uploaded_file)
-                st.dataframe(imported_df, use_container_width=True)
+                st.dataframe(imported_df, width=True)
                 if st.button("🚨 Nahradit celou tabulku importovanými daty"):
                     replace_table(conn, selected_table_id, imported_df)
                     load_table.clear()
