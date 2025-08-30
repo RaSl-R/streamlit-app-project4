@@ -149,8 +149,6 @@ def main_data_browser():
         st.info("Nebyla vybrána žádná validní tabulka.")
         st.stop()
 
-    st.subheader(f"Obsah tabulky: `{selected_table_name}`")
-
     col_expander, col2, col3, _, _ = st.columns([2.5, 1, 1, 0.5, 0.5])
 
     with col_expander:
@@ -159,7 +157,6 @@ def main_data_browser():
             "background-color: rgba(255, 255, 0, 0.1); border-radius: 5px;"
             if st.session_state.filter_applied else ""
         )
-        st.markdown(f"<style>div.stExpander:nth-of-type(2) {{ {expander_style} }}</style>", unsafe_allow_html=True)
 
         with st.expander(expander_label):
             where_clause = st.text_input(
