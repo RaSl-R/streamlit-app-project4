@@ -126,7 +126,7 @@ def request_group_form():
 
     engine = get_engine()
 
-    # Načteme seznam skupin z DB
+    # Načteme seznam skupin z DB (bez cache)
     with engine.connect() as conn:
         groups_dict = {}
         try:
@@ -134,9 +134,21 @@ def request_group_form():
                 text("SELECT id, name FROM auth.groups ORDER BY name")
             )
             groups_dict = {row.name: row.id for row in result}
+
+            # Načteme aktuální stav žádosti
+            current_req = conn.execute(
+                text("SELECT requested_group_id FROM auth.users WHERE email = :email"),
+                {"email": st.session_state.user_email}
+            ).scalar()
         except Exception as e:
-            st.error(f"Chyba při načítání skupin: {e}")
+            st.error(f"Chyba při načítání dat: {e}")
             return
+
+    # Zobrazení aktuálního stavu
+    if current_req is None:
+        st.caption("Aktuálně nemáš podanou žádost o skupinu.")
+    else:
+        st.caption(f"Aktuálně požádáno o skupinu s ID: {current_req}")
 
     if not groups_dict:
         st.info("Nejsou dostupné žádné skupiny.")
@@ -165,7 +177,10 @@ def request_group_form():
                         "email": st.session_state.user_email
                     }
                 )
+            # Vymazání cache, aby se při dalším vykreslení načetla nová hodnota
+            st.cache_data.clear()
             st.success(f"Žádost o skupinu „{requested_group_name}“ byla odeslána.")
+            st.experimental_rerun()  # Okamžité překreslení s novými daty
         except Exception as e:
             st.error(f"Chyba při odesílání žádosti: {e}")
 
