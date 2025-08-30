@@ -121,30 +121,37 @@ def change_password_form():
             )
         st.success("Heslo bylo změněno")
 
-def request_group_form_by_id():
-    st.subheader("Žádost o skupinu (ID)")
+def request_group_form():
+    st.subheader("Žádost o skupinu")
 
     engine = get_engine()
+
+    # Načteme seznam skupin z DB
     with engine.connect() as conn:
-        current_req = conn.execute(
-            text("SELECT requested_group_id FROM auth.users WHERE email = :email"),
-            {"email": st.session_state.user_email}
-        ).scalar()
+        groups_dict = {}
+        try:
+            result = conn.execute(
+                text("SELECT id, name FROM auth.groups ORDER BY name")
+            )
+            groups_dict = {row.name: row.id for row in result}
+        except Exception as e:
+            st.error(f"Chyba při načítání skupin: {e}")
+            return
 
-    if current_req is None:
-        st.caption("Aktuálně nemáš podanou žádost o skupinu.")
-    else:
-        st.caption(f"Aktuálně požádáno o skupinu s ID: {current_req}")
+    if not groups_dict:
+        st.info("Nejsou dostupné žádné skupiny.")
+        return
 
-    with st.form("request_group_form_by_id"):
-        requested_group_id = st.number_input("requested_group_id", min_value=1, step=1)
-        col_a, col_b = st.columns(2)
-        with col_a:
-            submitted = st.form_submit_button("Odeslat žádost")
-        with col_b:
-            cancel = st.form_submit_button("Zrušit žádost")
+    # Formulář
+    with st.form("request_group_form"):
+        requested_group_name = st.selectbox(
+            "Požadovaná skupina",
+            options=list(groups_dict.keys())
+        )
+        submitted = st.form_submit_button("Odeslat žádost")
 
     if submitted:
+        requested_group_id = groups_dict.get(requested_group_name)
         try:
             with engine.begin() as conn:
                 conn.execute(
@@ -153,26 +160,14 @@ def request_group_form_by_id():
                         SET requested_group_id = :requested_group_id
                         WHERE email = :email
                     """),
-                    {"requested_group_id": int(requested_group_id), "email": st.session_state.user_email}
+                    {
+                        "requested_group_id": requested_group_id,
+                        "email": st.session_state.user_email
+                    }
                 )
-            st.success(f"Žádost o skupinu s ID {int(requested_group_id)} byla odeslána.")
+            st.success(f"Žádost o skupinu „{requested_group_name}“ byla odeslána.")
         except Exception as e:
             st.error(f"Chyba při odesílání žádosti: {e}")
-
-    if cancel:
-        try:
-            with engine.begin() as conn:
-                conn.execute(
-                    text("""
-                        UPDATE auth.users
-                        SET requested_group_id = NULL
-                        WHERE email = :email
-                    """),
-                    {"email": st.session_state.user_email}
-                )
-            st.success("Žádost byla zrušena.")
-        except Exception as e:
-            st.error(f"Chyba při rušení žádosti: {e}")
 
 def logout():
     st.session_state.clear()
