@@ -13,23 +13,17 @@ def list_schemas(_conn):
 @st.cache_data
 def list_user_schemas(user_email: str):
     from utils.db import get_engine
-    engine = get_engine()
-    with engine.connect() as conn:
-        try:
-            query = text("""
-                SELECT DISTINCT p.schema_name
-                FROM auth.users u
-                JOIN auth.user_groups ug ON u.id = ug.user_id
-                JOIN auth.group_schema_permissions p ON ug.group_id = p.group_id
-                WHERE u.email = :email
-                ORDER BY p.schema_name;
-            """)
-            result = conn.execute(query, {"email": user_email})
-            return [row[0] for row in result]
-        except Exception as e:
-            conn.rollback()
-            st.error(f"Chyba při načítání schémat: {e}")
-            return []
+    with get_engine().connect() as conn:
+        query = text("""
+            SELECT DISTINCT p.schema_name
+            FROM auth.users u
+            JOIN auth.user_groups ug ON u.id = ug.user_id
+            JOIN auth.group_schema_permissions p ON ug.group_id = p.group_id
+            WHERE u.email = :email
+            ORDER BY p.schema_name;
+        """)
+        result = conn.execute(query, {"email": user_email})
+        return [row[0] for row in result]
 
 @st.cache_data
 def list_tables(_conn, schema_name):
@@ -121,7 +115,7 @@ def main_data_browser():
         st.session_state.where_clause = ""
 
     # Načteme schémata specifická pro přihlášeného uživatele
-    schemas = list_user_schemas(conn, st.session_state.user_email)
+    schemas = list_user_schemas(st.session_state.user_email)
 
     # Důležitá kontrola pro případ, že uživatel nemá přístup nikam
     if not schemas:
