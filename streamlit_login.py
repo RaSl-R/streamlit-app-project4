@@ -121,6 +121,59 @@ def change_password_form():
             )
         st.success("Heslo bylo změněno")
 
+def request_group_form_by_id():
+    st.subheader("Žádost o skupinu (ID)")
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        current_req = conn.execute(
+            text("SELECT requested_group_id FROM auth.users WHERE email = :email"),
+            {"email": st.session_state.user_email}
+        ).scalar()
+
+    if current_req is None:
+        st.caption("Aktuálně nemáš podanou žádost o skupinu.")
+    else:
+        st.caption(f"Aktuálně požádáno o skupinu s ID: {current_req}")
+
+    with st.form("request_group_form_by_id"):
+        requested_group_id = st.number_input("requested_group_id", min_value=1, step=1)
+        col_a, col_b = st.columns(2)
+        with col_a:
+            submitted = st.form_submit_button("Odeslat žádost")
+        with col_b:
+            cancel = st.form_submit_button("Zrušit žádost")
+
+    if submitted:
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("""
+                        UPDATE auth.users
+                        SET requested_group_id = :requested_group_id
+                        WHERE email = :email
+                    """),
+                    {"requested_group_id": int(requested_group_id), "email": st.session_state.user_email}
+                )
+            st.success(f"Žádost o skupinu s ID {int(requested_group_id)} byla odeslána.")
+        except Exception as e:
+            st.error(f"Chyba při odesílání žádosti: {e}")
+
+    if cancel:
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("""
+                        UPDATE auth.users
+                        SET requested_group_id = NULL
+                        WHERE email = :email
+                    """),
+                    {"email": st.session_state.user_email}
+                )
+            st.success("Žádost byla zrušena.")
+        except Exception as e:
+            st.error(f"Chyba při rušení žádosti: {e}")
+
 def logout():
     st.session_state.clear()
     st.rerun()
