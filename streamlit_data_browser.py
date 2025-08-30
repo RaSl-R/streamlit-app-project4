@@ -26,12 +26,15 @@ def list_user_schemas(user_email: str):
         return [row[0] for row in result]
 
 @st.cache_data
-def list_tables(_conn, schema_name):
-    result = _conn.execute(text("""
-        SELECT table_name FROM information_schema.tables
-        WHERE table_schema = :schema
-    """), {"schema": schema_name})
-    return {row[0]: f"{schema_name}.{row[0]}" for row in result}
+def list_tables(schema_name: str):
+    from utils.db import get_engine
+    with get_engine().connect() as conn:
+        result = conn.execute(text("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = :schema
+        """), {"schema": schema_name})
+        return {row[0]: 
 
 @st.cache_data(ttl=3600)
 def load_table(_conn, table_id):
@@ -130,7 +133,7 @@ def main_data_browser():
         key="selected_schema"
     )
 
-    tables_dict = list_tables(conn, selected_schema)
+    tables_dict = list_tables(selected_schema)
 
     if not tables_dict:
         st.info("Zvolené schéma neobsahuje žádnou tabulku.")
