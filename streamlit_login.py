@@ -126,29 +126,42 @@ def request_group_form():
 
     engine = get_engine()
 
-    # Načteme seznam skupin z DB (bez cache)
     with engine.connect() as conn:
         groups_dict = {}
         try:
+            # Načteme seznam skupin pro selectbox
             result = conn.execute(
                 text("SELECT id, name FROM auth.groups ORDER BY name")
             )
             groups_dict = {row.name: row.id for row in result}
 
-            # Načteme aktuální stav žádosti
-            current_req = conn.execute(
-                text("SELECT requested_group_id FROM auth.users WHERE email = :email"),
+            # Načteme aktuální stav žádosti včetně názvu skupiny
+            current_req_row = conn.execute(
+                text("""
+                    SELECT g.name, u.requested_group_id
+                    FROM auth.users u
+                    LEFT JOIN auth.groups g ON u.requested_group_id = g.id
+                    WHERE u.email = :email
+                """),
                 {"email": st.session_state.user_email}
-            ).scalar()
+            ).first()
+
+            if current_req_row:
+                current_req_name = current_req_row.name
+                current_req_id = current_req_row.requested_group_id
+            else:
+                current_req_name = None
+                current_req_id = None
+
         except Exception as e:
             st.error(f"Chyba při načítání dat: {e}")
             return
 
     # Zobrazení aktuálního stavu
-    if current_req is None:
+    if current_req_id is None:
         st.caption("Aktuálně nemáš podanou žádost o skupinu.")
     else:
-        st.caption(f"Aktuálně požádáno o skupinu s ID: {current_req}")
+        st.caption(f"Aktuálně požádáno o skupinu: {current_req_name}")
 
     if not groups_dict:
         st.info("Nejsou dostupné žádné skupiny.")
@@ -177,10 +190,9 @@ def request_group_form():
                         "email": st.session_state.user_email
                     }
                 )
-            # Vymazání cache, aby se při dalším vykreslení načetla nová hodnota
             st.cache_data.clear()
             st.success(f"Žádost o skupinu „{requested_group_name}“ byla odeslána.")
-            st.experimental_rerun()  # Okamžité překreslení s novými daty
+            st.experimental_rerun()
         except Exception as e:
             st.error(f"Chyba při odesílání žádosti: {e}")
 
