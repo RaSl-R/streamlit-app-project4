@@ -11,6 +11,20 @@ def list_schemas(_conn):
     return [row[0] for row in result]
 
 @st.cache_data
+def list_user_schemas(_conn, user_email: str):
+    """Načte pouze schémata, ke kterým má daný uživatel přístup."""
+    query = text("""
+        SELECT DISTINCT p.schema_name
+        FROM auth.users u
+        JOIN auth.user_groups ug ON u.id = ug.user_id
+        JOIN auth.group_schema_permissions p ON ug.group_id = p.group_id
+        WHERE u.email = :email
+        ORDER BY p.schema_name;
+    """)
+    result = _conn.execute(query, {"email": user_email})
+    return [row[0] for row in result]
+
+@st.cache_data
 def list_tables(_conn, schema_name):
     result = _conn.execute(text("""
         SELECT table_name FROM information_schema.tables
@@ -99,11 +113,19 @@ def main_data_browser():
     if "where_clause" not in st.session_state:
         st.session_state.where_clause = ""
 
-    schemas = list_schemas(conn)
+    # Načteme schémata specifická pro přihlášeného uživatele
+    schemas = list_user_schemas(conn, st.session_state.user_email)
+
+    # Důležitá kontrola pro případ, že uživatel nemá přístup nikam
+    if not schemas:
+        st.warning("Nemáte přiřazeno oprávnění k žádnému schématu. Obraťte se na administrátora.")
+        st.stop()
+
     selected_schema = st.selectbox(
         "📁 Vyber schéma",
         schemas,
-        index=schemas.index("public") if "public" in schemas else 0,
+        # 'public' už nemusí být vždy dostupné, tak index nastavíme na 0
+        index=0,
         key="selected_schema"
     )
 
