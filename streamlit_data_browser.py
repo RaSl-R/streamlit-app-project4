@@ -11,18 +11,25 @@ def list_schemas(_conn):
     return [row[0] for row in result]
 
 @st.cache_data
-def list_user_schemas(_conn, user_email: str):
-    """Načte pouze schémata, ke kterým má daný uživatel přístup."""
-    query = text("""
-        SELECT DISTINCT p.schema_name
-        FROM auth.users u
-        JOIN auth.user_groups ug ON u.id = ug.user_id
-        JOIN auth.group_schema_permissions p ON ug.group_id = p.group_id
-        WHERE u.email = :email
-        ORDER BY p.schema_name;
-    """)
-    result = _conn.execute(query, {"email": user_email})
-    return [row[0] for row in result]
+def list_user_schemas(user_email: str):
+    from utils.db import get_engine
+    engine = get_engine()
+    with engine.connect() as conn:
+        try:
+            query = text("""
+                SELECT DISTINCT p.schema_name
+                FROM auth.users u
+                JOIN auth.user_groups ug ON u.id = ug.user_id
+                JOIN auth.group_schema_permissions p ON ug.group_id = p.group_id
+                WHERE u.email = :email
+                ORDER BY p.schema_name;
+            """)
+            result = conn.execute(query, {"email": user_email})
+            return [row[0] for row in result]
+        except Exception as e:
+            conn.rollback()
+            st.error(f"Chyba při načítání schémat: {e}")
+            return []
 
 @st.cache_data
 def list_tables(_conn, schema_name):
